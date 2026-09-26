@@ -4,3 +4,7 @@
 
 > [!Note]
 > 该项目未使用Gardle
+
+## 构建
+
+_Windows:_ `cmd.exe /c build.bat`
