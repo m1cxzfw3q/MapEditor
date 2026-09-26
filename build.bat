@@ -19,15 +19,8 @@ if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
 if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
 
 :: ---- 1. 编译 ----
-pushd "%SCRIPT_DIR%"
-for %%F in ("%SCRIPT_DIR%\*.java") do if exist "%%~fF" echo "%%~nxF">>"%TEMP_DIR%\sources.txt"
-if non exist "%TEMP_DIR%\sources.txt" (
-    echo No Java source file found in "%SCRIPT_DIR%".
-    goto :error
-)
-javac -encoding UTF-8 -cp "%SCRIPT_DIR%;%IMPL_DIR%\*" -d "%TEMP_DIR%" @"%TEMP_DIR%\sources.txt"
-if errorlevel 1 ( popd & goto :error )
-popd
+javac -encoding UTF-8 -cp "%SCRIPT_DIR%;%IMPL_DIR%\*" -d "%TEMP_DIR%" "%SCRIPT_DIR%\*.java"
+if errorlevel 1 goto :error
 
 :: ---- 2. 解压所有依赖 jar ----
 pushd "%TEMP_DIR%"

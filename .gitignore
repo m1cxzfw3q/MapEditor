@@ -3,3 +3,6 @@ MapEditor.iml
 
 build
 build/*.jar
+
+temp
+temp/*
