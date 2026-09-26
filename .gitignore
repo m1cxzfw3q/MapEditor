@@ -1,3 +1,5 @@
 MapEditor.iml
 .idea
+
+build
 build/*.jar
