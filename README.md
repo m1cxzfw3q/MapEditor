@@ -1,12 +1,3 @@
-# MapEditor EN
-An external map editor for Mindustry, mainly written by AI.
+# MapEditor
 
-> [!Note]
-> This project does not use Gradle.
-
-# MapEditor CN
-
-一个Mindustry的外置地图编辑器，主要由AI编写
-
-> [!Note]
-> 该项目未使用Gardle
+[中文Readme](https://github.com/)
