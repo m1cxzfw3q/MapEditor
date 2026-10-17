@@ -38,7 +38,6 @@ public class MapEditorGUI extends JFrame {
     private File currentFile;
     private MapReaderWriter.MapData currentData;
     private JTabbedPane tabs; // 改为成员变量以便在拖拽处理中访问
-
     // 类成员
     private JButton patchesAddButton;
 
@@ -397,6 +396,8 @@ public class MapEditorGUI extends JFrame {
             @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { changed(); }
             @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { changed(); }
         });
+        patchSearchField.putClientProperty("JTextField.placeholderText", "搜索（以 ! 开头反转）");
+        patchSearchField.setToolTipText("在名称、摘要、类型中搜索；以 ! 开头表示反转匹配");
         patchSearchPanel.add(patchSearchField);
 
         JCheckBox namesOnly = new JCheckBox("仅搜名称");
@@ -409,7 +410,7 @@ public class MapEditorGUI extends JFrame {
         JButton clearSearch = new JButton("清空");
         clearSearch.addActionListener(e -> {
             patchSearchField.setText("");
-            // DocumentListener 会自动触发 applyFilterToAllTabs
+            // DocumentListener 自动触发 applyFilterToAllTabs
         });
         patchSearchPanel.add(clearSearch);
 
@@ -1527,32 +1528,68 @@ public class MapEditorGUI extends JFrame {
             applyFilter(tab);
         }
         updatePatchTabTitles();
+
+        if (statusLabel == null) return;
+        Object[] parsed = parseFilter(patchFilter);
+        boolean invert = (Boolean) parsed[0];
+        String keyword = (String) parsed[1];
+        if (keyword.isEmpty()) return;
+
+        int total = 0, shown = 0;
+        for (PatchTab tab : patchTabs) {
+            if (tab.type == null) {
+                total = tab.allRows.size();
+                shown = tab.rowRefs.size();
+                break;
+            }
+        }
+        statusLabel.setText((invert ? "反转搜索 \"" : "搜索 \"") + keyword + "\"：" + shown + "/" + total + " 项");
+    }
+
+    /** 解析搜索框内容，返回 {invert, keyword}。keyword 已 trim，空串表示不过滤 */
+    private static Object[] parseFilter(String raw) {
+        if (raw == null) return new Object[]{false, ""};
+        String s = raw.trim();
+        if (s.startsWith("\\!")) {
+            return new Object[]{false, s.substring(1)};   // \! → 正向搜 "!"
+        }
+        if (s.startsWith("!")) {
+            String kw = s.substring(1).trim();
+            return new Object[]{!kw.isEmpty(), kw};   // 只有 "!" 时不反转
+        }
+        return new Object[]{false, s};
     }
 
     private void applyFilter(PatchTab tab) {
         tab.model.setRowCount(0);
         tab.rowRefs.clear();
 
-        String filter = patchFilter;
-        boolean empty = filter == null || filter.isEmpty();
-        String lowerFilter = empty ? null : filter.toLowerCase(Locale.ROOT);
+        Object[] parsed = parseFilter(patchFilter);
+        boolean invert = (Boolean) parsed[0];
+        String keyword = (String) parsed[1];
+        String lowerFilter = keyword.isEmpty() ? null : keyword.toLowerCase(Locale.ROOT);
+        boolean empty = lowerFilter == null;
 
         for (int i = 0; i < tab.allRows.size(); i++) {
             Object[] row = tab.allRows.get(i);
+            CustomTypeIO.DataAssetType type = (CustomTypeIO.DataAssetType) tab.allRefs.get(i)[0];
 
             boolean match;
             if (empty) {
                 match = true;
             } else {
+                // ★ 3 列：row[0]=类型, row[1]=名称, row[2]=摘要
                 String typeName = (String) row[0];
-                String name = (String) row[1];
-                String summary = (String) row[2];
+                String name     = (String) row[1];
+                String summary  = (String) row[2];
 
                 match = containsIgnoreCase(name, lowerFilter);
                 if (!match && !patchSearchNamesOnly) {
                     match = containsIgnoreCase(summary, lowerFilter)
-                            || containsIgnoreCase(typeName, lowerFilter);
+                            || containsIgnoreCase(typeName, lowerFilter)
+                            || containsIgnoreCase(type.folder, lowerFilter);
                 }
+                if (invert) match = !match;
             }
 
             if (match) {
@@ -1568,15 +1605,20 @@ public class MapEditorGUI extends JFrame {
     }
 
     private void updatePatchTabTitles() {
+        Object[] parsed = parseFilter(patchFilter);
+        boolean invert = (Boolean) parsed[0];
+        String keyword = (String) parsed[1];
+        String prefix = invert ? "!" : "";
+
         for (int t = 0; t < patchTabs.size(); t++) {
             PatchTab pt = patchTabs.get(t);
             int total = pt.allRows.size();
             int shown = pt.rowRefs.size();
             String label;
-            if (patchFilter == null || patchFilter.isEmpty()) {
+            if (keyword.isEmpty()) {
                 label = pt.title + " (" + total + ")";
             } else {
-                label = pt.title + " (" + shown + "/" + total + ")";
+                label = pt.title + " (" + prefix + shown + "/" + total + ")";
             }
             patchesSubTabs.setTitleAt(t, label);
         }
