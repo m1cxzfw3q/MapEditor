@@ -1332,17 +1332,43 @@ public class MapEditorGUI extends JFrame {
             img = ImageIO.read(bais);
         }
         if (img == null) {
-            throw new IOException("无法解析 PNG 图片：" + file.getName());
+            throw new IOException("无法解析为图片：" + file.getName());
+        }
+
+        // ---- 强制 .png 后缀 ----
+        String baseName = stripExtension(file.getName());
+        if (baseName == null || baseName.isEmpty()) baseName = "imported-image";
+        String finalPath = baseName + ".png";
+
+        // ---- 确保字节是真正的 PNG ----
+        byte[] finalBytes;
+        if (isPng(bytes)) {
+            finalBytes = bytes;                       // 源文件本来就是 PNG，字节不动
+        } else {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(img, "png", baos);          // 重新编码为 PNG
+            finalBytes = baos.toByteArray();
         }
 
         undoManager.saveState();
 
-        String name = stripExtension(file.getName());
-        MapReaderWriter.DataImage di = new MapReaderWriter.DataImage(img, name, file.getName());
-        di.rawBytes = bytes;
+        MapReaderWriter.DataImage di =
+                new MapReaderWriter.DataImage(img, baseName, finalPath);
+        di.rawBytes = finalBytes;
         currentData.patches
                 .computeIfAbsent(CustomTypeIO.DataAssetType.image, k -> new ArrayList<>())
                 .add(di);
+    }
+
+    /** 检查字节头是否为 PNG 签名 */
+    private static boolean isPng(byte[] bytes) {
+        if (bytes == null || bytes.length < 8) return false;
+        return (bytes[0] & 0xFF) == 0x89
+                && bytes[1] == 'P'
+                && bytes[2] == 'N'
+                && bytes[3] == 'G'
+                && (bytes[4] & 0xFF) == 0x0D
+                && (bytes[5] & 0xFF) == 0x0A;
     }
 
     private void importAudioAsset(File file, CustomTypeIO.DataAssetType type) throws IOException {
